@@ -2,6 +2,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 
+
+
+
 // REGISTER 
 exports.register = async (req, res) => {
   const { username, email, full_name, address, phone_number, password, confirm_password, role } = req.body;
@@ -45,6 +48,9 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: "Database error", details: err.message });
   }
 };
+
+
+
 
 // LOGIN 
 exports.login = async (req, res) => {
@@ -96,6 +102,9 @@ exports.login = async (req, res) => {
   }
 };
 
+
+
+
 // GET ALL USERS
 exports.getUsers = async (req, res) => {
   try {
@@ -106,6 +115,9 @@ exports.getUsers = async (req, res) => {
     res.status(500).json({ error: "Database error", details: err.message });
   }
 };
+
+
+
 
 /// DELETE USERS
 exports.deleteUser  = async (req, res) => {
@@ -127,42 +139,29 @@ exports.deleteUser  = async (req, res) => {
 };
 
 
-// UPDATE USER
+
+
+
+
+// UPDATE USER (without password and role)
 exports.updateUser = async (req, res) => {
   const userId = req.params.id;
-  const { username, email, full_name, address, phone_number, password, confirm_password, role } = req.body;
+  const { username, email, full_name, address, phone_number } = req.body;
 
   // Validate required fields
-  if (!username || !email || !full_name || !address || !phone_number || !role) {
-    return res.status(400).json({ error: "All fields except password are required" });
-  }
-
-  // Validate role
-  if (role !== "admin" && role !== "user") {
-    return res.status(400).json({ error: "Invalid role. Must be 'admin' or 'user'" });
+  if (!username || !email || !full_name || !address || !phone_number) {
+    return res.status(400).json({ error: "All fields are required" });
   }
 
   try {
-    let hashedPassword = null;
-
-    // Handle password update if provided
-    if (password || confirm_password) {
-      if (password !== confirm_password) {
-        return res.status(400).json({ error: "Passwords do not match" });
-      }
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
-
     // Prepare query & values
     const query = `
       UPDATE users 
-      SET username = ?, email = ?, full_name = ?, address = ?, phone_number = ?, ${hashedPassword ? "password = ?, " : ""} role = ?
+      SET username = ?, email = ?, full_name = ?, address = ?, phone_number = ?
       WHERE id = ?
     `;
 
-    const values = hashedPassword
-      ? [username, email, full_name, address, phone_number, hashedPassword, role, userId]
-      : [username, email, full_name, address, phone_number, role, userId];
+    const values = [username, email, full_name, address, phone_number, userId];
 
     const [result] = await db.query(query, values);
 

@@ -41,6 +41,9 @@ const router = express.Router();
  */
 router.post("/register", register);
 
+
+
+
 /**
  * @swagger
  * /api/auth/login:
@@ -66,6 +69,9 @@ router.post("/register", register);
  */
 router.post("/login", login);
 
+
+
+
 /**
  * @swagger
  * /api/auth/users:
@@ -83,6 +89,9 @@ router.post("/login", login);
  *         description: Server error
  */
 router.get("/users", verifyToken, getUsers);
+
+
+
 
 /**
  * @swagger
@@ -110,6 +119,9 @@ router.get("/users", verifyToken, getUsers);
  *         description: Server error
  */
 router.delete("/users/:id", verifyToken, deleteUser );
+
+
+
 
 /**
  * @swagger
@@ -155,3 +167,4 @@ router.delete("/users/:id", verifyToken, deleteUser );
 router.put('/users/:id', verifyToken, updateUser );
 
 module.exports = router;
+
