@@ -1,83 +1,104 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const db = require("../config/db");
+const { Op } = require("sequelize");
+const User = require("../models/User");
+require("dotenv").config();
 
-
-
-
-// REGISTER 
+// REGISTER
 exports.register = async (req, res) => {
-  const { username, email, full_name, address, phone_number, password, confirm_password, role } = req.body;
-  console.log("Received Registration Data:", req.body);
+  const {
+    username,
+    email,
+    full_name,
+    address,
+    phone_number,
+    password,
+    confirm_password,
+    role,
+  } = req.body;
 
-  // Validate required fields
-  if (!username || !email || !full_name || !address || !phone_number || !password || !confirm_password || !role) {
+  if (
+    !username ||
+    !email ||
+    !full_name ||
+    !address ||
+    !phone_number ||
+    !password ||
+    !confirm_password ||
+    !role
+  ) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
-  // Ensure role is either "admin" or "user"
-  if (role !== "admin" && role !== "user") {
-    return res.status(400).json({ error: "Invalid role. Must be 'admin' or 'user'" });
+  if (!["admin", "user"].includes(role)) {
+    return res
+      .status(400)
+      .json({ error: "Invalid role. Must be 'admin' or 'user'" });
   }
 
-  // Validate password match
   if (password !== confirm_password) {
     return res.status(400).json({ error: "Passwords do not match" });
   }
 
   try {
-    // Check if username or email already exists
-    const [existingUser ] = await db.query("SELECT * FROM users WHERE username = ? OR email = ?", [username, email]);
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [{ username }, { email }],
+      },
+    });
 
-    if (existingUser .length > 0) {
-      return res.status(400).json({ error: "Username or email already in use" });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ error: "Username or email already in use" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert new user with role
-    await db.query(
-      "INSERT INTO users (username, email, full_name, address, phone_number, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [username, email, full_name, address, phone_number, hashedPassword, role]
-    );
+    await User.create({
+      username,
+      email,
+      full_name,
+      address,
+      phone_number,
+      password: hashedPassword,
+      role,
+    });
 
-    res.status(201).json({ message: "User  registered successfully", role });
+    res.status(201).json({ message: "User registered successfully", role });
   } catch (err) {
     console.error("Error during registration:", err);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 };
 
-
-
-
-// LOGIN 
+// LOGIN
 exports.login = async (req, res) => {
   const { username, password } = req.body;
 
-  // Validate required fields
   if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
+    return res
+      .status(400)
+      .json({ error: "Username and password are required" });
   }
 
   try {
-    // Find user by username
-    const [users] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
+    const user = await User.findOne({ where: { username } });
 
-    if (users.length === 0) {
-      return res.status(401).json({ error: "Invalid username or password" });
+    if (!user) {
+      return res
+        .status(401)
+        .json({ error: "Invalid username or password" });
     }
 
-    const user = users[0];
-
-    // Compare password
     const validPassword = await bcrypt.compare(password, user.password);
+
     if (!validPassword) {
-      return res.status(401).json({ error: "Invalid username or password" });
+      return res
+        .status(401)
+        .json({ error: "Invalid username or password" });
     }
 
-    // Generate JWT token with role
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
@@ -93,7 +114,7 @@ exports.login = async (req, res) => {
         full_name: user.full_name,
         address: user.address,
         phone_number: user.phone_number,
-        role: user.role
+        role: user.role,
       },
     });
   } catch (err) {
@@ -102,13 +123,20 @@ exports.login = async (req, res) => {
   }
 };
 
-
-
-
 // GET ALL USERS
 exports.getUsers = async (req, res) => {
   try {
-    const [users] = await db.query("SELECT id, username, email, full_name, address, phone_number, role FROM users");
+    const users = await User.findAll({
+      attributes: [
+        "id",
+        "username",
+        "email",
+        "full_name",
+        "address",
+        "phone_number",
+        "role",
+      ],
+    });
     res.status(200).json(users);
   } catch (err) {
     console.error("Error retrieving users:", err);
@@ -116,18 +144,14 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-
-
-
-/// DELETE USERS
-exports.deleteUser  = async (req, res) => {
+// DELETE USER
+exports.deleteUser = async (req, res) => {
   const userId = req.params.id;
-  console.log("Received DELETE request for user ID:", userId);
 
   try {
-    const [result] = await db.query("DELETE FROM users WHERE id = ?", [userId]);
+    const result = await User.destroy({ where: { id: userId } });
 
-    if (result.affectedRows > 0) {
+    if (result) {
       res.status(200).json({ message: "User deleted successfully" });
     } else {
       res.status(404).json({ message: "User not found" });
@@ -138,42 +162,36 @@ exports.deleteUser  = async (req, res) => {
   }
 };
 
-
-
-
-
-
-// UPDATE USER (without password and role)
+// UPDATE USER
 exports.updateUser = async (req, res) => {
   const userId = req.params.id;
   const { username, email, full_name, address, phone_number } = req.body;
 
-  // Validate required fields
-  if (!username || !email || !full_name || !address || !phone_number) {
+  if (
+    !username ||
+    !email ||
+    !full_name ||
+    !address ||
+    !phone_number
+  ) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
   try {
-    // Prepare query & values
-    const query = `
-      UPDATE users 
-      SET username = ?, email = ?, full_name = ?, address = ?, phone_number = ?
-      WHERE id = ?
-    `;
+    const [updated] = await User.update(
+      { username, email, full_name, address, phone_number },
+      { where: { id: userId } }
+    );
 
-    const values = [username, email, full_name, address, phone_number, userId];
-
-    const [result] = await db.query(query, values);
-
-    if (result.affectedRows > 0) {
+    if (updated) {
       res.status(200).json({ message: "User updated successfully" });
     } else {
-      res.status(404).json({ message: "User not found or no changes made" });
+      res
+        .status(404)
+        .json({ message: "User not found or no changes made" });
     }
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).json({ error: "Database error", details: error.message });
   }
 };
-
-

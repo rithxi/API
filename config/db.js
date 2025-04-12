@@ -1,19 +1,21 @@
-const mysql = require("mysql2/promise");
-const dotenv = require("dotenv");
-dotenv.config();
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-// Parse DB_URL (e.g., mysql://user:pass@host:port/dbname)
-const dbUrl = new URL(process.env.DB_URL);
+// Destructure env variables
+const {
+  DB_HOST,
+  DB_USER,
+  DB_PASS,
+  DB_NAME,
+  DB_PORT // Optional: if Railway gives a custom port (usually something like 40699)
+} = process.env;
 
-const pool = mysql.createPool({
-  host: dbUrl.hostname,
-  port: dbUrl.port,
-  user: dbUrl.username,
-  password: dbUrl.password,
-  database: dbUrl.pathname.replace('/', ''),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+// Create Sequelize instance
+const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
+  host: DB_HOST,
+  port: DB_PORT || 3306,
+  dialect: 'mysql',
+  logging: false, // Set to true to see raw SQL queries in console
 });
 
-module.exports = pool;
+module.exports = sequelize;

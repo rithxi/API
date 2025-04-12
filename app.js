@@ -6,6 +6,8 @@ const rateLimit = require("express-rate-limit");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocs = require("./docs/swagger");
 const authRoutes = require("./routes/authRoutes");
+const  sequelize  = require("./config/db"); // ⬅️ Sequelize instance
+
 require("dotenv").config();
 
 // Load environment variables
@@ -31,31 +33,42 @@ app.use("/api/auth", authRoutes);
 // Error Handling for Uncaught Exceptions
 process.on("uncaughtException", (err) => {
   console.error("🚨 Uncaught Exception:", err.stack || err);
-  process.exit(1); // Exit process after logging
+  process.exit(1);
 });
 
 // Error Handling for Unhandled Promise Rejections
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason) => {
   console.error("⚠️ Unhandled Rejection:", reason);
 });
 
-// Start server
+// Start server after syncing Sequelize
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
-// Graceful shutdown (Handles SIGINT & SIGTERM)
-process.on("SIGINT", () => {
-  console.log("🛑 Server shutting down...");
-  server.close(() => {
-    console.log("✅ Server closed");
-    process.exit(0);
-  });
-});
+sequelize.sync({ alter: true }) // ⬅️ Sync Sequelize (creates/updates tables)
+  .then(() => {
+    console.log("✅ Database synced");
 
-process.on("SIGTERM", () => {
-  console.log("🛑 SIGTERM received, closing server...");
-  server.close(() => {
-    console.log("✅ Server closed");
-    process.exit(0);
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+
+    // Graceful shutdown
+    process.on("SIGINT", () => {
+      console.log("🛑 Server shutting down...");
+      server.close(() => {
+        console.log("✅ Server closed");
+        process.exit(0);
+      });
+    });
+
+    process.on("SIGTERM", () => {
+      console.log("🛑 SIGTERM received, closing server...");
+      server.close(() => {
+        console.log("✅ Server closed");
+        process.exit(0);
+      });
+    });
+  })
+  .catch((err) => {
+    console.error("❌ Failed to sync database:", err);
   });
-});
