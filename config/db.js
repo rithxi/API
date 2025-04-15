@@ -1,21 +1,15 @@
-const { Sequelize } = require('sequelize');
 require('dotenv').config();
+const { Sequelize } = require('sequelize');
 
-// Destructure env variables
-const {
-  DB_HOST,
-  DB_USER,
-  DB_PASS,
-  DB_NAME,
-  DB_PORT // Optional: if Railway gives a custom port (usually something like 40699)
-} = process.env;
-
-// Create Sequelize instance
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
-  host: DB_HOST,
-  port: DB_PORT || 3306,
+const sequelize = new Sequelize(process.env.MYSQL_URL, {
   dialect: 'mysql',
-  logging: false, // Set to true to see raw SQL queries in console
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  },
+  logging: false,
 });
 
 module.exports = sequelize;
