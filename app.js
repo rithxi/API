@@ -7,6 +7,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDocs = require("./docs/swagger");
 const authRoutes = require("./routes/authRoutes");
 const  sequelize  = require("./config/db"); // ⬅️ Sequelize instance
+app.set("trust proxy", 1);
 
 require("dotenv").config();
 
